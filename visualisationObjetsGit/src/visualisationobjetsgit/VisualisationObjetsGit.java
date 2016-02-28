@@ -16,6 +16,7 @@ import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import views.projection;
 
 /**
  *
@@ -25,6 +26,7 @@ public class VisualisationObjetsGit extends Application {
     
     private TreeItem<String> rootTreeListeFichiers;
     private TreeView<String> treeListeFichiers;
+    private projection rootprojectionContenuFichiers;
    
     /**
      * ouvre une fenetre de selection de dossier,
@@ -178,6 +180,15 @@ public class VisualisationObjetsGit extends Application {
             
             root.setLeft(treeListeFichiers);
         
+        // ----------------- projection View Liste fichiers -----------------
+            
+            rootprojectionContenuFichiers = new projection();
+        
+            // nouvelle projectionView avec l'element racine "rootprojectionListeFichiers"
+            // le dossier => ".git/objects"
+                      
+            root.setCenter(rootprojectionContenuFichiers);
+        
         // ----------------- tree View Liste fichiers -----------------
         // ------------------------------------------------------------
 
@@ -200,6 +211,8 @@ public class VisualisationObjetsGit extends Application {
         
         primaryStage.setScene(scene);
         primaryStage.show();
+        //Test de la classe projection
+        rootprojectionContenuFichiers.setText("Le code est bon");
     }
 
     /**
