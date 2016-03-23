@@ -1,0 +1,13 @@
+- Barre de recherche pour rechercher en fonction de la clef du fichier
+
+- Un bouton aide qui ouvre un fichier texte pour expliquer le fonctionnement (Guide)
+
+- Grande fenêtre qui affiche tout l'arbre, réagit au clic pour sélectionner le fichier que l'on veut, réagit au résultat de la recherche et aux déplacement par les 4 boutons.
+
+- Fenêtre zoom pour voir de manière plus précise quel est le fichier sélectionné
+
+- Fenêtre détails (facultative): Une fenêtre qui affiche les détails du fichier
+
+- Le bouton ok/open Pour accéder au contenu du fichier.
+
+- Bouton close pour fermer l'interface (équivalent a la croix en haut du fichier) 
