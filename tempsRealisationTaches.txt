@@ -16,3 +16,41 @@ recherches techniques/documentations,2,1,2
 codage interface utilisateur,5,0,5
 codage recuperation et lecture fichiers git,3,0,3
 gestion evenements utilisateur,3,0,3
+
+
+
+conception/fonctionnalités/diagrammes : 0.5 j
+recherches techniques/documentations : 0.5 j
+codage recuperation et lecture fichiers git : 0.5 j
+
+
+semaine 8/02 14/02 (6)
+
+recherches techniques/documentations : 1/2
+codage recuperation et lecture fichiers git : 1/2
+
+
+semaine 15/02 21/02 (7)
+
+codage interface utilisateur : 1
+
+
+semaine 22/02 28/02 (8)
+
+(debut 16h)
+(fin 00h)	= 8h
+
+(debut 13h)
+(fin 19h)	= 6h
+
+(debut 16h)
+(fin 21h)
++ 2 * 2h 	= 5 + 4 = 9h
+
+total : 23h
+
+semaine 29/02 06/03 (9)
+
+semaine 07/03 13/03 (10)
+
+
