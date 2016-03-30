@@ -3,19 +3,24 @@ package model;
 import java.io.File;
 
 
-abstract class GitObject {
-    private String content;
+public abstract class GitObject {
     private File gitObjectFile;
+    private String name;
     
-    public String getContent(){
-        return content;
+    public File getFile(){
+        return gitObjectFile;
     }
-    public String getAbsolutePath(){
-        return gitObjectFile.getAbsolutePath();
+    
+    public String getName(){
+        return name;
     }
+    
     public GitObject(File _gitObjectFile){
         
         gitObjectFile = _gitObjectFile;
         
+        name = gitObjectFile.getParentFile().getName()+gitObjectFile.getName();
+        
     }
+    
 }
