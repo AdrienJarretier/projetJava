@@ -153,8 +153,7 @@ public class VisualisationObjetsGit extends Application {
         // ----------------- views -----------------
         // -----------------------------------------
 
-            
-            
+        
         // -----------------------------------------------------------
         // ------------------- barre de recherche --------------------
         
@@ -183,7 +182,6 @@ public class VisualisationObjetsGit extends Application {
         
         // ------------------- barre de recherche --------------------
         // -----------------------------------------------------------
-        
         
         primaryStage.setScene(scene);
         primaryStage.show();
