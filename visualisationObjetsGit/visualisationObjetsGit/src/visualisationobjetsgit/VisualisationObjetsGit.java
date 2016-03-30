@@ -10,10 +10,13 @@ import javafx.event.ActionEvent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import model.Git;
@@ -150,28 +153,38 @@ public class VisualisationObjetsGit extends Application {
         // ----------------- views -----------------
         // -----------------------------------------
 
-            
-            
-// code de la barre de recherche * sera réutilisé plus tard *     
-//        GridPane grid = new GridPane();
-//        grid.setPadding(new Insets(30, 30, 30, 30));
-//        grid.setVgap(5);
-//        grid.setHgap(5);
-//
-//        TextField searchField = new TextField();
-//        searchField.setPromptText("Recherche");
-//        GridPane.setConstraints(searchField, 0, 0);
-//        grid.getChildren().add(searchField);
-//        
-//        Button searchButton = new Button("Recherche");
-//        GridPane.setConstraints(searchButton, 1, 0);
-//        grid.getChildren().add(searchButton);
-//        
-//        root.setCenter(grid);
+        
+        // -----------------------------------------------------------
+        // ------------------- barre de recherche --------------------
+        
+        GridPane grid = new GridPane();
+        grid.setVgap(5);
+        grid.setHgap(5);
+
+        // zone de saisie
+        TextField searchField = new TextField();
+        searchField.setPromptText("Saisir manuellement");
+        searchField.setPrefColumnCount(30);
+        GridPane.setConstraints(searchField, 75, 0);
+        grid.getChildren().add(searchField);
+        
+        // bouton
+        Button searchButton = new Button("Recherche");
+        GridPane.setConstraints(searchButton, 76, 0);
+        grid.getChildren().add(searchButton);
+        
+        searchButton.setOnAction( (ActionEvent t) -> {
+               System.out.println(searchField.getText()); 
+            } );
+        
+        // ajout de la barre de recherche dans la fenetre principale
+        root.setBottom(grid);
+        
+        // ------------------- barre de recherche --------------------
+        // -----------------------------------------------------------
         
         primaryStage.setScene(scene);
         primaryStage.show();
-        
         
     }
 
