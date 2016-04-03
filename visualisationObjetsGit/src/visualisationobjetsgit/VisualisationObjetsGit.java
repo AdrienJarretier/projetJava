@@ -5,6 +5,8 @@ import exceptions.NotGitDirectoryException;
 import exceptions.NotGitRepositoryException;
 import java.io.File;
 import java.io.IOException;
+import java.util.Observable;
+import java.util.Observer;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
 import javafx.scene.Scene;
@@ -13,8 +15,10 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.Popup;
 import javafx.stage.Stage;
 import model.Git;
 import views.GitObjectFileContentView;
@@ -24,7 +28,7 @@ import views.GitObjectsFilesTreeView;
  *
  * @author Jarretier Adrien "jarretier.adrien@gmail.com"
  */
-public class VisualisationObjetsGit extends Application {
+public class VisualisationObjetsGit extends Application implements Observer {
    
     private Git gitModel;
     
@@ -35,6 +39,8 @@ public class VisualisationObjetsGit extends Application {
     public void init() {
         
         gitModel = new Git();
+        
+        gitModel.addObserver(this);
         
         objectsFilesList = new GitObjectsFilesTreeView( gitModel );
         objectContent = new GitObjectFileContentView();
@@ -70,6 +76,11 @@ public class VisualisationObjetsGit extends Application {
             if(!gitDirectory.exists()) {
                 throw new NotGitRepositoryException("Ce n'est pas un depot git valide !");
             }
+                    
+            ProgressBar progressBar = new ProgressBar( gitModel.getProgress() );
+            Popup popupProgressBar = new Popup();
+            popupProgressBar.getContent().add(progressBar);
+            popupProgressBar.show( stage );
             
             gitModel.setGitDirectory(gitDirectory);
 
@@ -107,14 +118,7 @@ public class VisualisationObjetsGit extends Application {
             boolean validGitRepo; 
             do {
                 try {
-//                        File gitDir = openGitRepository(primaryStage);
                     openGitRepository(primaryStage);
-
-                    // si openGitRepository renvoie null on ne fait aucun traitement
-                    // ( la selection de dossier a ete annulee )
-//                        if( gitDir != null ) {
-//                            objectsFilesList.addListGitObjects( gitDir );
-//                        }
 
                     validGitRepo = true;
                 }
@@ -170,6 +174,13 @@ public class VisualisationObjetsGit extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
         
+        
+    }
+
+    @Override
+    public void update(Observable o, Object arg) {
+        
+        System.out.println( "main : " + gitModel.getProgress() );
         
     }
 

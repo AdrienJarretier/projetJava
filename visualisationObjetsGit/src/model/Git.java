@@ -14,6 +14,7 @@ import java.util.zip.InflaterInputStream;
 public class Git extends Observable{
     private File gitDirectory;  
     private ArrayList<GitObject> objects;
+    private double loadProgress;
     
     // defini les types d'objets que l'on peut rencontrer dans .git/objects
     // cette enum correspond aux classes derivants de GitObject
@@ -60,6 +61,7 @@ public class Git extends Observable{
     public Git(){
         gitDirectory = null;
         objects = new ArrayList();
+        loadProgress = 0.0;
     }
 
     
@@ -87,6 +89,9 @@ public class Git extends Observable{
         gitDirectory = _gitDirectory;
         objects.clear();
         
+        int totalObjects = objectsDirectory.list().length + tagsDirectory.list().length;
+        int ObjectsProcessed = 0;
+        
         for (File f: objectsDirectory.listFiles()){
 
             // on ne traite pas les dossiers infos et pack pour le moment
@@ -110,18 +115,30 @@ public class Git extends Observable{
                             break;
                     }
                 }
+                loadProgress = (double)++ObjectsProcessed / (double)totalObjects;
+                setChanged();
+                notifyObservers();
             }
         }
         
         for (File fTag : tagsDirectory.listFiles()) {
             
             objects.add( new Tag( fTag, this ) );
+            loadProgress = (double)++ObjectsProcessed / (double)totalObjects;
+            setChanged();
+            notifyObservers();
             
         }
+        
+        loadProgress = 1.0;
         
         setChanged();
         notifyObservers();
         
+    }
+    
+    public double getProgress() {
+        return loadProgress;
     }
 
     public ArrayList<GitObject> getObjects() {
