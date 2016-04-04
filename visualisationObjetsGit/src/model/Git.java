@@ -8,8 +8,69 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.zip.InflaterInputStream;
+import javafx.concurrent.Task;
 
+final class ObjectsListTask extends Task< ArrayList<GitObject> >{
 
+    File objectsDirectory, tagsDirectory;
+    
+    public ObjectsListTask(File _objectsDirectory, File _tagsDirectory) {
+        
+        objectsDirectory = _objectsDirectory;
+        tagsDirectory = _tagsDirectory;
+        
+    }
+    
+    @Override
+    protected ArrayList<GitObject> call() throws Exception {
+        
+        ArrayList<GitObject> objects = new ArrayList<>();
+        
+        int totalObjects = objectsDirectory.list().length + tagsDirectory.list().length;
+        int ObjectsProcessed = 0;
+        
+        for (File f: objectsDirectory.listFiles()){
+
+            // on ne traite pas les dossiers infos et pack pour le moment
+            if(!f.getName().equals("pack") && !f.getName().equals("info") ) {     
+                for (File f2: f.listFiles()){
+
+                    ObjectType type = getType(f2);
+
+                    switch(type){
+
+                        case BLOB:
+                            objects.add(new Blob( f2, this ));
+                            break;
+
+                        case TREE:
+                            objects.add(new Tree( f2, this ));
+                            break;
+
+                        case COMMIT:
+                            objects.add(new Commit( f2, this ));
+                            break;
+                    }
+                }
+                loadProgress = (double)++ObjectsProcessed / (double)totalObjects;
+                setChanged();
+                notifyObservers();
+            }
+        }
+        
+        for (File fTag : tagsDirectory.listFiles()) {
+            
+            objects.add( new Tag( fTag, this ) );
+            loadProgress = (double)++ObjectsProcessed / (double)totalObjects;
+            setChanged();
+            notifyObservers();
+            
+        }
+        
+        return objects;
+    }
+    
+}
 
 public class Git extends Observable{
     private File gitDirectory;  
@@ -63,7 +124,6 @@ public class Git extends Observable{
         objects = new ArrayList();
         loadProgress = 0.0;
     }
-
     
     public void setGitDirectory(File _gitDirectory) throws DirectoryDoesNotExistException, NotGitDirectoryException, IOException {
        // on gere les erreurs pouvant etre rencontrees avec le dossiers git  
@@ -89,46 +149,7 @@ public class Git extends Observable{
         gitDirectory = _gitDirectory;
         objects.clear();
         
-        int totalObjects = objectsDirectory.list().length + tagsDirectory.list().length;
-        int ObjectsProcessed = 0;
-        
-        for (File f: objectsDirectory.listFiles()){
-
-            // on ne traite pas les dossiers infos et pack pour le moment
-            if(!f.getName().equals("pack") && !f.getName().equals("info") ) {     
-                for (File f2: f.listFiles()){
-
-                    ObjectType type = getType(f2);
-
-                    switch(type){
-
-                        case BLOB:
-                            objects.add(new Blob( f2, this ));
-                            break;
-
-                        case TREE:
-                            objects.add(new Tree( f2, this ));
-                            break;
-
-                        case COMMIT:
-                            objects.add(new Commit( f2, this ));
-                            break;
-                    }
-                }
-                loadProgress = (double)++ObjectsProcessed / (double)totalObjects;
-                setChanged();
-                notifyObservers();
-            }
-        }
-        
-        for (File fTag : tagsDirectory.listFiles()) {
-            
-            objects.add( new Tag( fTag, this ) );
-            loadProgress = (double)++ObjectsProcessed / (double)totalObjects;
-            setChanged();
-            notifyObservers();
-            
-        }
+        ObjectsListTask fillObjectsList = new ObjectsListTask(objectsDirectory, tagsDirectory);
         
         loadProgress = 1.0;
         
