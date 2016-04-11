@@ -33,6 +33,26 @@ public final class FileReading {
                
     }
     
+    public static Byte[] inflate(FileInputStream fis) throws FileNotFoundException, IOException{
+        
+        InflaterInputStream decompresser = new InflaterInputStream( fis );
+                
+        ArrayList<Byte> LectureFichier = new ArrayList();
+        int caract;
+        
+        try {
+            while((caract = decompresser.read()) != -1){
+                LectureFichier.add( (byte)caract );
+            }
+        }
+        catch(IOException e) {
+            throw new IOException( e.getMessage() );
+        }
+         
+        return LectureFichier.toArray(new Byte[0]);         
+               
+    }
+    
     public static String stringValue( Byte[] inflated ) {
         // converti les octets du tableau en characteres
         StringBuilder content = new StringBuilder();
