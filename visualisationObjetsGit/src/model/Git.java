@@ -66,7 +66,7 @@ public class Git extends Observable{
     }
 
     
-    public void setGitDirectory(File _gitDirectory) throws DirectoryDoesNotExistException, NotGitDirectoryException, IOException {
+    public void setGitDirectory(File _gitDirectory) throws DirectoryDoesNotExistException, NotGitDirectoryException, IOException, Exception {
        // on gere les erreurs pouvant etre rencontrees avec le dossiers git  
         if(!_gitDirectory.exists()) {
             throw new DirectoryDoesNotExistException("Le dossier <" + gitDirectory.getAbsolutePath() + "> n'existe pas");

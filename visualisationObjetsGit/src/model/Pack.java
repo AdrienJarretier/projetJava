@@ -2,6 +2,7 @@ package model;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -33,7 +34,7 @@ public class Pack {
     private ArrayList<String> names = new ArrayList<>();
     private int objectsInPack = 0;
     
-    public Pack(File packFile) throws Exception {
+    public Pack(File packFile) throws Exception, FileNotFoundException, IOException {
 
         File parent = packFile.getParentFile();
 
