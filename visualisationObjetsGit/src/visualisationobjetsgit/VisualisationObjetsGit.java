@@ -54,7 +54,7 @@ public class VisualisationObjetsGit extends Application {
      * 
      * @throws exceptions.NotGitRepositoryException 
      */
-    private void openGitRepository(Stage stage) throws NotGitRepositoryException, DirectoryDoesNotExistException, NotGitDirectoryException, IOException {
+    private void openGitRepository(Stage stage) throws NotGitRepositoryException, DirectoryDoesNotExistException, NotGitDirectoryException, IOException, Exception {
         
         DirectoryChooser dc = new DirectoryChooser();
         
@@ -120,7 +120,7 @@ public class VisualisationObjetsGit extends Application {
 
                     validGitRepo = true;
                 }
-                catch(NotGitDirectoryException | NotGitRepositoryException | DirectoryDoesNotExistException | IOException e) {
+                catch(Exception e) {
 
                     Alert alert = new Alert(AlertType.ERROR, e.getMessage());
                     alert.showAndWait();
