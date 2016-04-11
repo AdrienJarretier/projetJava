@@ -34,8 +34,11 @@ public class Pack {
     private ArrayList<String> names = new ArrayList<>();
     private int objectsInPack = 0;
     protected Git gitInstance;
+    private ArrayList<GitObject> gitObjectsList;
     
     public Pack(File packFile, ArrayList<GitObject> objects, Git _gitInstance) throws Exception, FileNotFoundException, IOException {
+        
+        this.gitObjectsList = objects;
         
         this.gitInstance = _gitInstance;
         
@@ -199,7 +202,7 @@ public class Pack {
     // premiers 4 octets : mot "PACK"
     
         buff = new byte[4];
-        buffCopy = new Byte[ buff.length ];
+//        buffCopy = new Byte[ buff.length ];
         
         fis.read(buff);
 
@@ -272,53 +275,72 @@ public class Pack {
             fis.skip( offset.getKey() );
             
             int data = fis.read();
-            
-            int type = data & 0b01110000; // masque pour obtenir le type
-            
-            String typeStringBin = Integer.toBinaryString(type);
-            while( typeStringBin.length() < 8 ) {
-                typeStringBin = "0"+typeStringBin;
-            }
-            typeStringBin = typeStringBin.substring(1,4);
-            type = Integer.valueOf(typeStringBin, 2);
 
             // test "most significant bit"
             boolean readNextByte = data >= 128;
             // si le premier bit est 1 alors on lira l'octet suivant
             // qui fait partie de notre entier a taille variable
-            
-//            int realObjectOffset = offset.getKey();
-//            // la position de l'objet apres les metadatas,
-//            // cad l'objet que l'on va pouvoir instancier
+            // (voir plus haut)
             
             while( readNextByte ) {
                 
                 data = fis.read();
                 readNextByte = data >= 128;
-//                realObjectOffset++;
                 
             }
+            
+            int type = getType( offset.getKey() );
             
             switch(type) {
                     
                 case OBJ_COMMIT:
-                    objects.add( new Commit( offset.getValue(), this.gitInstance, offset.getKey(), this ) );
-                    break;
-                    
                 case OBJ_TREE:
-                    objects.add( new Tree( offset.getValue(), this.gitInstance, offset.getKey(), this ) );
-                    break;
-                    
                 case OBJ_BLOB:
-                    objects.add( new Blob( offset.getValue(), this.gitInstance, offset.getKey(), this ) );
-                    break;
-                    
 //                case OBJ_TAG:
-//                    objects.add( new Tag( offset.getValue(), this.gitInstance, realObjectOffset ) );
-//                    break;
+                    this.addObject(offset.getValue(), offset.getKey(), type);
+                    break;
                     
                 case OBJ_OFS_DELTA:
-//                    System.out.println("OBJ_OFS_DELTA");
+                    
+                    // on va d'abord recuperer la position de 'lobjet de base
+                    // ainsi on aura son type : Blob, Commit, ....
+                    // ensuite on va instancier un nouvel objet de ce type
+                    // et seulement sur demande on appliquera les deltas
+                    
+                    // le delta commence par un entier a taille variable
+                    // c'est un offset negatif pour trouver l'objet de base
+                    data = fis.read();
+                    int negativeOffset = data & 0b01111111;
+
+                    readNextByte = data >= 128;
+                    // si le premier bit est 1 alors on lira l'octet suivant
+                    // qui fait partie de notre entier a taille variable
+
+                    long twoPower = 1;
+
+                    while( readNextByte ) {
+
+                        data = fis.read();
+                        readNextByte = data >= 128;
+
+                        negativeOffset = negativeOffset << 7;
+                        negativeOffset += data & 0b01111111;
+
+                        twoPower *= 128;
+
+                    }
+
+                    while( twoPower > 1 ) {
+                        negativeOffset += twoPower;
+                        twoPower /= 128;
+                    }
+
+                    int resultOffset = offset.getKey() - negativeOffset;
+//                    System.out.println( "delta negative offset : " + negativeOffset + " " + offset.getValue() );
+//                    System.out.println( "result offset : " + resultOffset + " " + offsetObjects.get( resultOffset ) );
+                    
+                    this.addObject( offset.getValue(), offset.getKey(), getType(resultOffset) );
+
                     break;
                     
 //                case OBJ_REF_DELTA:
@@ -332,10 +354,98 @@ public class Pack {
 //------------------------------------------------------------------------------
     }
     
+//    /**
+//     * a partir d'un objet a la position donne, suppose un objet delta
+//     * recherche et renvoi la position de l'objet de base le plus absolu
+//     * c'est a dire parcours tous les deltas jusqua trouver l'objet
+//     * Blob, Commit, Tree, ...
+//     * 
+//     * @param offset la position de l'objet delta
+//     * @return la position de l'objet de base
+//     */
+//    private int getAbsoluteBaseObjectOffset( int offset ) throws IOException {
+//        
+//            FileInputStream fis = new FileInputStream( this.pack );
+//            
+//            fis.skip( offset );
+//            
+//            int data = fis.read();
+//
+//            // test "most significant bit"
+//            boolean readNextByte = data >= 128;
+//            // si le premier bit est 1 alors on lira l'octet suivant
+//            // qui fait partie de notre entier a taille variable
+//            // (voir plus haut)
+//            
+//            while( readNextByte ) {
+//                
+//                data = fis.read();
+//                readNextByte = data >= 128;
+//                
+//            }
+//            
+//            int type = getType( offset.getKey() );
+//        
+//    }
+    
+    /**
+     * 
+     * @param offset la position d'un objet dans ce pack
+     * @return le type de cet objet
+     */
+    private int getType( int offset ) throws FileNotFoundException, IOException {
+        
+        FileInputStream fis = new FileInputStream( this.pack );
+
+        fis.skip( offset );
+
+        int data = fis.read();
+
+        int type = data & 0b01110000; // masque pour obtenir le type
+
+        String typeStringBin = Integer.toBinaryString(type);
+        while( typeStringBin.length() < 8 ) {
+            typeStringBin = "0"+typeStringBin;
+        }
+        typeStringBin = typeStringBin.substring(1,4);
+        type = Integer.valueOf(typeStringBin, 2);
+        
+        return type;
+        
+    }
+    
+    private void addObject( String name, int offset, int type ) throws IOException {
+        
+        System.out.println("type : " + type);
+        
+        switch(type) {
+            
+            case OBJ_COMMIT:
+                this.gitObjectsList.add( new Commit( name, this.gitInstance, offset, this ) );
+            break;
+
+            case OBJ_TREE:
+                this.gitObjectsList.add( new Tree( name, this.gitInstance, offset, this ) );
+            break;
+
+            case OBJ_BLOB:
+                this.gitObjectsList.add( new Blob( name, this.gitInstance, offset, this ) );
+            break;
+                    
+//            case OBJ_TAG:
+//                objects.add( new Tag( offset.getValue(), this.gitInstance, realObjectOffset ) );
+//                break;
+            
+        }
+        
+    }
+    
     /**
      *
      * @param offset la position de l'objet recherchz
      * @return les donnes presentes apres les metadatas
+     * @throws java.io.FileNotFoundException
+     * @throws java.io.IOException
      */
     public Byte[] getRawDatas( int offset ) throws FileNotFoundException, IOException {
         
