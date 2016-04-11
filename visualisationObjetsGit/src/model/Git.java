@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Observable;
 import java.util.zip.InflaterInputStream;
 
@@ -92,8 +93,9 @@ public class Git extends Observable{
         
         for (File f: objectsDirectory.listFiles()){
 
-            // on ne traite pas les dossiers infos et pack pour le moment
-            if(!f.getName().equals("pack") && !f.getName().equals("info") ) {     
+            // on ne traite pas le dossier infos
+            // et le dossier pack est traite plus loin
+            if(!f.getName().equals("pack") && !f.getName().equals("info") ) {
                 for (File f2: f.listFiles()){
 
                     ObjectType type = getType(f2);
@@ -113,6 +115,19 @@ public class Git extends Observable{
                             break;
                     }
                 }
+            }
+            else if ( f.getName().equals("pack") ) {
+                
+                for (File f2: f.listFiles()){
+
+                    if( f2.getName().endsWith(".pack") ) {
+                        
+                        Pack p = new Pack( f2 );
+                        
+                    }
+                    
+                }
+                
             }
         }
         
