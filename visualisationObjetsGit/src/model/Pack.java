@@ -33,7 +33,7 @@ public class Pack {
     private ArrayList<String> names = new ArrayList<>();
     private int objectsInPack = 0;
     
-    public Pack(File packFile) throws IOException {
+    public Pack(File packFile) throws Exception {
 
         File parent = packFile.getParentFile();
 
@@ -181,6 +181,67 @@ public class Pack {
 //            
 //            System.out.println( offset.getKey() + " : " + offset.getValue() );
 //        }
+
+        fisIdx.close(); // on libere le fichier idx.
+        // on va maintenant passer au fichier pack
+
+//------------------------------------------------------------------------------
+        
+//------------------------------------------------------------------------------
+// PACK file
+        
+        FileInputStream fis = new FileInputStream( pack );
+
+    // premiers 4 octets : mot "PACK"
+    
+        buff = new byte[4];
+        buffCopy = new Byte[ buff.length ];
+        
+        fis.read(buff);
+
+//        for (int i = 0; i < buff.length; i++) {
+//
+//            buffCopy[i] = buff[i];
+//
+//        }
+//
+//        System.out.println( FileReading.stringValue( buffCopy ) );
+        
+//------------------------------------------------------------------------------
+               
+//------------------------------------------------------------------------------
+        
+    // 4 octets : version
+    
+        buff = new byte[4];
+        
+        fis.read(buff);
+
+//        System.out.println( ByteBuffer.wrap(buff).getInt() );
+
+        // les versions ne correspondent pas ERREUR !!
+        if ( this.version != ByteBuffer.wrap(buff).getInt() ) {
+            throw new Exception("versions non compatibles entre pack et idx");
+        }
+
+//        System.out.println( "" );
+        
+//------------------------------------------------------------------------------
+     
+//------------------------------------------------------------------------------
+        
+    // 4 octets : nombre d'objets dans ce Pack
+        buff = new byte[4];
+        
+        fis.read(buff);
+        
+//        System.out.println("objets : " + ByteBuffer.wrap(buff).getInt());
+        
+        // le nombre d'objets ne correspond pas
+        // avec ce qui ete dans idx ERREUR !!
+        if ( this.objectsInPack != ByteBuffer.wrap(buff).getInt() ) {
+            throw new Exception("nombre d'objets indiques dans idx different");
+        }
         
 //------------------------------------------------------------------------------
 
