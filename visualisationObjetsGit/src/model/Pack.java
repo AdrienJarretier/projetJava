@@ -238,7 +238,7 @@ public class Pack {
 //        System.out.println("objets : " + ByteBuffer.wrap(buff).getInt());
         
         // le nombre d'objets ne correspond pas
-        // avec ce qui ete dans idx ERREUR !!
+        // avec ce qui etait dans idx ERREUR !!
         if ( this.objectsInPack != ByteBuffer.wrap(buff).getInt() ) {
             throw new Exception("nombre d'objets indiques dans idx different");
         }
