@@ -31,9 +31,9 @@ public class Commit extends GitObject{
 
     }
    
-    public Commit(String _name, Git _gitInstance, int offset) {
+    public Commit(String _name, Git _gitInstance, int offset, Pack pack) {
         
-        super(_name, _gitInstance, offset);
+        super(_name, _gitInstance, offset, pack);
 
     }
     
@@ -43,16 +43,26 @@ public class Commit extends GitObject{
         if ( !this.filled ) {
         
             parents = new ArrayList<>();
+            String content;
 
-            String content = FileReading.stringValue( FileReading.ReadFile( this.getFile() ) );
-
+            if( inPack ) {
+                
+                content = FileReading.stringValue( this.pack.getRawDatas( this.offsetInPack ) );
+                
+            }
+            else {
+            
+                content = FileReading.stringValue( FileReading.removeHeading( FileReading.ReadFile( this.getFile() ) ) );
+                
+            }
+//            System.out.println(content);
 
             StringReader sr = new StringReader( content );
             BufferedReader bf = new BufferedReader( sr );
 
             String line = bf.readLine();
 
-            tree = (Tree)gitInstance.find( line.split(" ")[2] );
+            tree = (Tree)gitInstance.find( line.split(" ")[1] );
 
             line = bf.readLine();
 

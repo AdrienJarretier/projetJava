@@ -23,9 +23,9 @@ public class Tree extends GitObject{
 
     }
     
-    public Tree(String _name, Git _gitInstance, int offset) throws IOException {
+    public Tree(String _name, Git _gitInstance, int offset, Pack pack) throws IOException {
         
-        super(_name, _gitInstance, offset);
+        super(_name, _gitInstance, offset, pack);
         
         filesModes = new ArrayList<>();
         filesNames = new ArrayList<>();
@@ -40,13 +40,13 @@ public class Tree extends GitObject{
         
         int i = 0;
         char c;
-        // affichage de l'entete
-        do {
-            c = (char)inflated[i].byteValue();
-            content.append(c);
-            i++;
-        }while (c != '\0');
-        content.append('\n');
+//        // affichage de l'entete
+//        do {
+//            c = (char)inflated[i].byteValue();
+//            content.append(c);
+//            i++;
+//        }while (c != '\0');
+//        content.append('\n');
         
         // pour chaque entree on fait la meme chose
         while(i < inflated.length) {
@@ -74,14 +74,24 @@ public class Tree extends GitObject{
     protected void fill() throws IOException {
         
         if ( !this.filled ) {
+
+            String content;
+            if( inPack ) {
+                
+                content = Tree.stringValue( this.pack.getRawDatas( this.offsetInPack ) );
+                
+            }
+            else {
             
-            String content = Tree.stringValue( FileReading.ReadFile(getFile()) );
+                content = Tree.stringValue( FileReading.removeHeading( FileReading.ReadFile(getFile()) ) );
+                
+            }
             
             StringReader sr = new StringReader( content );
             BufferedReader bf = new BufferedReader( sr );
 
             String line = bf.readLine();
-            line = bf.readLine();   //  on passe l'en-tete
+//            line = bf.readLine();   //  on passe l'en-tete
             
             while( line != null )
             {

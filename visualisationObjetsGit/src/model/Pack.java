@@ -287,30 +287,30 @@ public class Pack {
             // si le premier bit est 1 alors on lira l'octet suivant
             // qui fait partie de notre entier a taille variable
             
-            int realObjectOffset = offset.getKey();
-            // la position de l'objet apres les metadatas,
-            // cad l'objet que l'on va pouvoir instancier
+//            int realObjectOffset = offset.getKey();
+//            // la position de l'objet apres les metadatas,
+//            // cad l'objet que l'on va pouvoir instancier
             
             while( readNextByte ) {
                 
                 data = fis.read();
                 readNextByte = data >= 128;
-                realObjectOffset++;
+//                realObjectOffset++;
                 
             }
             
             switch(type) {
                     
                 case OBJ_COMMIT:
-                    objects.add( new Commit( offset.getValue(), this.gitInstance, realObjectOffset ) );
+                    objects.add( new Commit( offset.getValue(), this.gitInstance, offset.getKey(), this ) );
                     break;
                     
                 case OBJ_TREE:
-                    objects.add( new Tree( offset.getValue(), this.gitInstance, realObjectOffset ) );
+                    objects.add( new Tree( offset.getValue(), this.gitInstance, offset.getKey(), this ) );
                     break;
                     
                 case OBJ_BLOB:
-                    objects.add( new Blob( offset.getValue(), this.gitInstance, realObjectOffset ) );
+                    objects.add( new Blob( offset.getValue(), this.gitInstance, offset.getKey(), this ) );
                     break;
                     
 //                case OBJ_TAG:
@@ -318,7 +318,7 @@ public class Pack {
 //                    break;
                     
                 case OBJ_OFS_DELTA:
-                    System.out.println("OBJ_OFS_DELTA");
+//                    System.out.println("OBJ_OFS_DELTA");
                     break;
                     
 //                case OBJ_REF_DELTA:
@@ -330,6 +330,29 @@ public class Pack {
         }
     
 //------------------------------------------------------------------------------
+    }
+    
+    /**
+     *
+     * @param offset la position de l'objet recherchz
+     * @return les donnes presentes apres les metadatas
+     */
+    public Byte[] getRawDatas( int offset ) throws FileNotFoundException, IOException {
+        
+        FileInputStream fis = new FileInputStream( this.pack );
+        
+        fis.skip(offset);
+        
+        boolean readNextByte = fis.read() >= 128;
+        
+        while( readNextByte ) {
+
+            readNextByte = fis.read() >= 128;
+
+        }
+        
+        return FileReading.inflate( fis );
+        
     }
 
 }

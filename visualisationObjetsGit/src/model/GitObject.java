@@ -9,8 +9,13 @@ public abstract class GitObject {
     protected String name;
     protected Git gitInstance;
     
-    private boolean inPack;
+    
+    protected boolean inPack;
         // vrai si l'objet est dans le pack
+    protected int offsetInPack;
+        //  si inPack cet entier indique la position de l'objet dans le pack
+    protected Pack pack;
+        // si inPack represente le pack contenant cet objet
     
     protected boolean filled; 
         // permet de savoir si les proprietes de l'objet ont ete recuperees
@@ -53,7 +58,7 @@ public abstract class GitObject {
      * @param _name le nom de l'objet (40 caracteres >= hexadecimal)
      * @param _gitInstance l'instance Git contenant cet objet
      */
-    public GitObject(String _name, Git _gitInstance, int offset){
+    public GitObject(String _name, Git _gitInstance, int offset, Pack pack){
         
         gitObjectFile = null;
         
@@ -61,7 +66,11 @@ public abstract class GitObject {
         
         gitInstance = _gitInstance;
         
+        
         this.inPack = true;
+        this.offsetInPack = offset;
+        this.pack = pack;
+        
         
         this.filled = false;
         

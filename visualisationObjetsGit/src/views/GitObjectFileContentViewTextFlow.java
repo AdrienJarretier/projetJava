@@ -72,7 +72,7 @@ public class GitObjectFileContentViewTextFlow extends TextFlow implements Observ
                         case OBJECT_REF:
                             getChildren().add( new Text( pName + " : " ) );
                             if( property.value == null ) {
-                                getChildren().add( new Text( "null (dans pack)" ) );
+                                getChildren().add( new Text( "null (dans pack en delta)" ) );
                             }
                             else {
                                 Hyperlink link = new Hyperlink( ((GitObject)property.value).getName() );
