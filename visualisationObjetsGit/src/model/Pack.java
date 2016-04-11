@@ -2,10 +2,10 @@ package model;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -130,7 +130,60 @@ public class Pack {
 //        }
         
 //------------------------------------------------------------------------------
-     
+        
+//------------------------------------------------------------------------------
+        
+    // 4 octets Cyclic redundancy check
+    // pour chaque objet
+    
+        buff = new byte[4];
+
+//        System.out.print("crc : ");
+        for (int i = 0; i < objectsInPack; i++) {
+        
+            fisIdx.read(buff);
+            for (int j = 0; j < buff.length; j++) {
+                
+//                System.out.print( buff[j] + " " );
+            }
+//            System.out.print( "|" );
+        }
+        
+//        System.out.println("");
+        
+//------------------------------------------------------------------------------
+           
+//------------------------------------------------------------------------------
+        
+    // 4 octets * le nombre d'objets
+    // decalage pour chaque objet
+    
+        buff = new byte[4*objectsInPack];
+        
+        fisIdx.read(buff);
+        
+        buffCopy = new Byte[ 4 ];
+        ByteBuffer wrap2 = ByteBuffer.wrap(buff);
+
+        for (int i = 0; i < objectsInPack; i++) {
+            
+            for (int j = 0; j < 4; j++) {
+                
+                buffCopy[j] = buff[j+i*4];
+                
+            }
+
+            offsetObjects.put( wrap2.getInt() & 0b01111111111111111111111111111111 , names.get( offsetObjects.size() ) );
+            
+        }
+        
+//        for (Map.Entry<Integer, String> offset : offsetObjects.entrySet()) {
+//            
+//            System.out.println( offset.getKey() + " : " + offset.getValue() );
+//        }
+        
+//------------------------------------------------------------------------------
+
     }
 
 }
