@@ -22,6 +22,17 @@ public class Tree extends GitObject{
         childs = new ArrayList<>();
 
     }
+    
+    public Tree(String _name, Git _gitInstance, int offset) throws IOException {
+        
+        super(_name, _gitInstance, offset);
+        
+        filesModes = new ArrayList<>();
+        filesNames = new ArrayList<>();
+        childs = new ArrayList<>();
+
+    }
+    
     // lecture de l'arbre de façon lisible pour un humain
      public static String stringValue( Byte[] inflated ) {
         

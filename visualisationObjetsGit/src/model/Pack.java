@@ -15,7 +15,7 @@ import java.util.TreeMap;
  */
 public class Pack {
     
-    private final static int OBJ_BAD = -1;
+//    private final static int OBJ_BAD = -1;
     private final static int OBJ_NONE = 0;
     private final static int OBJ_COMMIT = 1;
     private final static int OBJ_TREE = 2;
@@ -33,9 +33,12 @@ public class Pack {
 
     private ArrayList<String> names = new ArrayList<>();
     private int objectsInPack = 0;
+    protected Git gitInstance;
     
-    public Pack(File packFile) throws Exception, FileNotFoundException, IOException {
-
+    public Pack(File packFile, ArrayList<GitObject> objects, Git _gitInstance) throws Exception, FileNotFoundException, IOException {
+        
+        this.gitInstance = _gitInstance;
+        
         File parent = packFile.getParentFile();
 
         this.idx = new File(parent, packFile.getName().replace(".pack", ".idx"));
@@ -245,7 +248,88 @@ public class Pack {
         }
         
 //------------------------------------------------------------------------------
+       
+//------------------------------------------------------------------------------
 
+    // on va traiter chaque objet dans le pack
+    //
+    // chaque objet commence par des metadatas
+    // chaque octet de ces metadatas commence par un MSB (most significant bit) 
+    //
+    // les 3 bits suivants du premier octet indiquent le type de l'objet
+    //
+    // les 4 derniers bits sont le debut d'un entier a taille variable
+    // qui indique la taille de l'objet (apres decompression).
+    //
+    // si le MSB est a 1 alors il faut lire l'octet suivant,
+    // il contient un MSB et 7 bits qui font parti de notre entier
+    // et ainsi dessuite jusqu'a avoir un MSB == 0
+        
+        for (Map.Entry<Integer, String> offset : offsetObjects.entrySet()) {
+            
+            fis = new FileInputStream( this.pack );
+            
+            fis.skip( offset.getKey() );
+            
+            int data = fis.read();
+            
+            int type = data & 0b01110000; // masque pour obtenir le type
+            
+            String typeStringBin = Integer.toBinaryString(type);
+            while( typeStringBin.length() < 8 ) {
+                typeStringBin = "0"+typeStringBin;
+            }
+            typeStringBin = typeStringBin.substring(1,4);
+            type = Integer.valueOf(typeStringBin, 2);
+
+            // test "most significant bit"
+            boolean readNextByte = data >= 128;
+            // si le premier bit est 1 alors on lira l'octet suivant
+            // qui fait partie de notre entier a taille variable
+            
+            int realObjectOffset = offset.getKey();
+            // la position de l'objet apres les metadatas,
+            // cad l'objet que l'on va pouvoir instancier
+            
+            while( readNextByte ) {
+                
+                data = fis.read();
+                readNextByte = data >= 128;
+                realObjectOffset++;
+                
+            }
+            
+            switch(type) {
+                    
+                case OBJ_COMMIT:
+                    objects.add( new Commit( offset.getValue(), this.gitInstance, realObjectOffset ) );
+                    break;
+                    
+                case OBJ_TREE:
+                    objects.add( new Tree( offset.getValue(), this.gitInstance, realObjectOffset ) );
+                    break;
+                    
+                case OBJ_BLOB:
+                    objects.add( new Blob( offset.getValue(), this.gitInstance, realObjectOffset ) );
+                    break;
+                    
+//                case OBJ_TAG:
+//                    objects.add( new Tag( offset.getValue(), this.gitInstance, realObjectOffset ) );
+//                    break;
+                    
+                case OBJ_OFS_DELTA:
+                    System.out.println("OBJ_OFS_DELTA");
+                    break;
+                    
+//                case OBJ_REF_DELTA:
+//                    System.out.println("OBJ_REF_DELTA");
+//                    break;
+                
+            }
+            
+        }
+    
+//------------------------------------------------------------------------------
     }
 
 }

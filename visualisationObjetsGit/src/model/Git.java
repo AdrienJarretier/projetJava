@@ -122,7 +122,7 @@ public class Git extends Observable{
 
                     if( f2.getName().endsWith(".pack") ) {
                         
-                        Pack p = new Pack( f2 );
+                        Pack p = new Pack( f2, objects, this );
                         
                     }
                     

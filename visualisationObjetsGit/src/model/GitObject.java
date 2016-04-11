@@ -50,10 +50,10 @@ public abstract class GitObject {
      * Instancie un objet Git a partir d'un nom
      * Cet objet est suppose se trouver dans un pack
      * 
-     * @param _name
-     * @param _gitInstance
+     * @param _name le nom de l'objet (40 caracteres >= hexadecimal)
+     * @param _gitInstance l'instance Git contenant cet objet
      */
-    public GitObject(String _name, Git _gitInstance){
+    public GitObject(String _name, Git _gitInstance, int offset){
         
         gitObjectFile = null;
         

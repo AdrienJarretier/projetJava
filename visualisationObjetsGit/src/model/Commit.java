@@ -30,6 +30,12 @@ public class Commit extends GitObject{
         super(_file, _gitInstance);
 
     }
+   
+    public Commit(String _name, Git _gitInstance, int offset) {
+        
+        super(_name, _gitInstance, offset);
+
+    }
     
     @Override
     protected void fill() throws IOException { 
