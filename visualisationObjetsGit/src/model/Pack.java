@@ -102,6 +102,35 @@ public class Pack {
         
 //------------------------------------------------------------------------------
       
+//------------------------------------------------------------------------------
+        
+    // 20 octets * le nombre d'objets
+    // les noms des objets
+    
+        buff = new byte[20*this.objectsInPack];
+        
+        fisIdx.read(buff);
+        
+        buffCopy = new Byte[ 20 ];
+
+        
+        for (int i = 0; i < this.objectsInPack; i++) {
+            
+            for (int j = 0; j < 20; j++) {
+                
+                buffCopy[j] = buff[j+i*20];
+                
+            }
+            this.names.add( FileReading.toHex(buffCopy) );
+            
+        }
+        
+//        for (String name : this.names) {
+//            System.out.println(name);
+//        }
+        
+//------------------------------------------------------------------------------
+     
     }
 
 }
