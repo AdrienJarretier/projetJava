@@ -296,7 +296,7 @@ public class Pack {
                 case OBJ_COMMIT:
                 case OBJ_TREE:
                 case OBJ_BLOB:
-//                case OBJ_TAG:
+                case OBJ_TAG:
                     this.addObject(offset.getValue(), offset.getKey(), type);
                     break;
                     
@@ -451,9 +451,9 @@ public class Pack {
                 this.gitObjectsList.add( new Blob( name, this.gitInstance, offset, this ) );
             break;
                     
-//            case OBJ_TAG:
-//                objects.add( new Tag( offset.getValue(), this.gitInstance, realObjectOffset ) );
-//                break;
+            case OBJ_TAG:
+                this.gitObjectsList.add( new Tag( name, this.gitInstance, offset, this ) );
+                break;
             
         }
         

@@ -57,6 +57,8 @@ public abstract class GitObject {
      * 
      * @param _name le nom de l'objet (40 caracteres >= hexadecimal)
      * @param _gitInstance l'instance Git contenant cet objet
+     * @param offset la position de cet objet dans le pack
+     * @param pack le pack ou se trouve cet objet
      */
     public GitObject(String _name, Git _gitInstance, int offset, Pack pack){
         

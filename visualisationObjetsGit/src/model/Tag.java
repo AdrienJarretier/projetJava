@@ -24,6 +24,12 @@ public class Tag extends GitObject{
         */
         
     }
+    
+    public Tag(String _name, Git _gitInstance, int offset, Pack pack) throws IOException {
+        
+        super(_name, _gitInstance, offset, pack);
+        
+    }
 
     @Override
     protected void fill() throws IOException {

@@ -91,7 +91,7 @@ public class GitObjectsFilesTreeView extends TreeView<String> implements Observe
                 
             for (int i = 0; i < this.types.length; i++) {
                 
-                if( this.types[i].contains( object.getClass().getSimpleName() ) ) {
+                if( this.types[i].contains( object.getClass().getSimpleName() ) && this.types[i].startsWith( object.getClass().getSimpleName() ) ) {
             
                     TreeItem<String> item = new TreeItem<>( object.getName() );
                     objectsType.get(i).getChildren().add( item );
@@ -162,7 +162,7 @@ public class GitObjectsFilesTreeView extends TreeView<String> implements Observe
         
         setShowRoot(false);
         
-        this.types = new String[]{"Blobs","Commits","Tags","Trees"};
+        this.types = new String[]{"Blobs","Commits","Tags","Trees","AnnotedTags"};
         
         objectsType = new ArrayList<>(this.types.length);
         

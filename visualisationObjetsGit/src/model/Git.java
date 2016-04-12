@@ -20,7 +20,7 @@ public class Git extends Observable{
     // defini les types d'objets que l'on peut rencontrer dans .git/objects
     // cette enum correspond aux classes derivants de GitObject
     private enum ObjectType {
-        BLOB, TREE, COMMIT, TAG,
+        BLOB, TREE, COMMIT, TAG, ANNOTED_TAG,
         NONE
     }
     
@@ -50,6 +50,10 @@ public class Git extends Observable{
 
         else if(mot.toString().startsWith("commit")){
             return ObjectType.COMMIT;
+        }
+
+        else if(mot.toString().startsWith("tag")){
+            return ObjectType.ANNOTED_TAG;
         }
 
 
@@ -112,6 +116,10 @@ public class Git extends Observable{
 
                         case COMMIT:
                             objects.add(new Commit( f2, this ));
+                            break;
+
+                        case ANNOTED_TAG:
+                            objects.add(new AnnotedTag( f2, this ));
                             break;
                     }
                 }
