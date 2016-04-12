@@ -462,6 +462,8 @@ public class Pack {
      */
     public Byte[] getRawDatas( int offset ) throws FileNotFoundException, IOException {
         
+//        System.out.println("getRawDatas");
+        
         FileInputStream fis = new FileInputStream( this.pack );
         
         fis.skip(offset);
@@ -538,13 +540,15 @@ public class Pack {
                 if( instruction < 0 ) {
                     // c'est une copie
                     
-                    System.out.println("copy ");
+//                    System.out.println("copy ");
 
                     int[] copyDatas = copyOffsetAndLength(instruction, i, inflatedDelta);
                     
-                    System.out.println(" offset : " + copyDatas[0]);
-                    System.out.println(" length : " + copyDatas[1]);
-                    
+//                    System.out.println("baseObject.length : " + baseObject.length);
+//                    
+//                    System.out.println(" offset : " + copyDatas[0]);
+//                    System.out.println(" length : " + copyDatas[1]);
+
                     for (int j = copyDatas[0]; j < copyDatas[0]+copyDatas[1]; j++) {
                         
                         output.add( baseObject[j] );
@@ -556,14 +560,17 @@ public class Pack {
                     // c'est une insertion
                     
 //                    System.out.println("insert");
+//                    System.out.println("instruction : " + instruction );
                     i++;
                     for (int j = 0; j < instruction; j++) {
-                        output.add( inflatedDelta[i] );
+                        output.add( inflatedDelta[ i ] );
 //                        System.out.println( "\t" +  Integer.toBinaryString( inflatedDelta[i] & 0xff ) );
                         i++;
                     }
                 }
             }
+            
+//            System.out.println("return");
             
             return output.toArray(new Byte[0]);
             
@@ -582,6 +589,12 @@ public class Pack {
         
         int byteOffset = 0;
         int mask = 0b0001;
+        
+//        System.out.println( "byteOffset / " + Integer.toBinaryString(copyInstruction) );
+//        System.out.println( "byteOffset / " + Integer.toBinaryString(inflated[nextByteToRead[0]-1]) );
+//        System.out.println( "byteOffset / " + Integer.toBinaryString(inflated[nextByteToRead[0]]) );
+//        System.out.println( "byteOffset / " + Integer.toBinaryString(inflated[nextByteToRead[0]+1]) );
+//        System.out.println( "byteOffset / " + Integer.toBinaryString(inflated[nextByteToRead[0]+2]) );
         
         for (int j = 3; j >= 0; j--) {
             
@@ -648,12 +661,12 @@ public class Pack {
      */
     public static int[] copyOffsetAndLength(byte copyInstruction, int i, Byte[] inflated) {
         
-        int[] iArray = { i };
+        int[] iArray = { i+1 };
         int byteOffset = byteOffset(copyInstruction, iArray, inflated);
         
         int copyLength = copyLength(copyInstruction, iArray, inflated);
         
-        int[] result = { byteOffset, copyLength, iArray[0]+1 };
+        int[] result = { byteOffset, copyLength, iArray[0] };
         
         return result;
     }

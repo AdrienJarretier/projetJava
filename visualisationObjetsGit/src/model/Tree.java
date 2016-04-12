@@ -49,6 +49,7 @@ public class Tree extends GitObject{
 //        content.append('\n');
         
         // pour chaque entree on fait la meme chose
+         // System.out.println( FileReading.stringValue(inflated) );
         while(i < inflated.length) {
             // affichage du nom
             do {
@@ -56,11 +57,13 @@ public class Tree extends GitObject{
                 content.append(c);
                 i++;
             }while (c != '\0');
-            content.append(" ");
+            content.replace(content.length()-1,content.length(), " ");
+//            System.out.println(content);
             
             // recuperation de la cle du fichier 
             for(int j = 0; j<20; j++){
                 content.append(String.format("%02x", inflated[i]));
+//                System.out.println(content);
                 i++;
             } 
             content.append('\n');
@@ -78,7 +81,17 @@ public class Tree extends GitObject{
             String content;
             if( inPack ) {
                 
-                content = Tree.stringValue( this.pack.getRawDatas( this.offsetInPack ) );
+                Byte[] rawDatas = this.pack.getRawDatas( this.offsetInPack );
+                // System.out.println("rawDatas.length : " + rawDatas.length);
+                
+                // System.out.println("********************");
+                
+                // System.out.println(FileReading.stringValue(rawDatas));
+//                System.out.println(FileReading.stringValue(rawDatas).substring(0, 144));
+                
+                // System.out.println("********************");
+                
+                content = Tree.stringValue( rawDatas );
                 
             }
             else {
@@ -97,7 +110,12 @@ public class Tree extends GitObject{
             {
                 filesModes.add( line.split(" ")[0] );
                 filesNames.add( line.split(" ")[1] );
-                childs.add( gitInstance.find( line.split(" ")[2] ) );
+                
+                for (int i = 2; i < line.split(" ").length-1; i++) {
+                    filesNames.set( filesNames.size()-1, filesNames.get( filesNames.size()-1 )+line.split(" ")[i] );
+                }
+                
+                childs.add( gitInstance.find( line.split(" ")[line.split(" ").length-1] ) );
                 
                 line = bf.readLine();
             }
