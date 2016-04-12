@@ -10,20 +10,18 @@ import java.util.ArrayList;
 
 public class Tag extends GitObject{
     
+    private GitObject referencedCommit; // le commit reference par ce tag
+    
     public Tag(File _file, Git _gitInstance) throws IOException {
         
         super(_file, _gitInstance);
         
         name = _file.getName();
-        
-        FileReader fr = new FileReader(_file);
-        BufferedReader bf = new BufferedReader(fr);
-        
-//        System.out.println("-------------------------------------------------------");
-//        System.out.println("nom : " + this.getName());
-//        System.out.println( bf.readLine() );
-//        System.out.println("-------------------------------------------------------");
-        
+        /*
+            On ecrase le nom recupere dans super ( GitObject )
+            car les tags sont dans le dossier refs/tags
+            donc on ne veut pas concatener "tags"
+        */
         
     }
 
@@ -31,8 +29,14 @@ public class Tag extends GitObject{
     protected void fill() throws IOException {
         
         if ( !this.filled ) {
+        
+            FileReader fr = new FileReader( this.getFile() );
+            BufferedReader bf = new BufferedReader(fr);
             
+            referencedCommit = this.gitInstance.find( bf.readLine() );
             
+            bf.close();
+            fr.close();
             
             this.filled = true;
         }
@@ -44,7 +48,7 @@ public class Tag extends GitObject{
         this.fill();
         
         ArrayList<GitObjectProperty> properties = new ArrayList<>();
-        properties.add(new GitObjectProperty("", GitObjectPropertyType.STRING, this.toString()));
+        properties.add(new GitObjectProperty( "ReferencedCommit", GitObjectPropertyType.OBJECT_REF, this.referencedCommit ));
         
         return properties;
     }
