@@ -452,7 +452,7 @@ public class Pack {
             break;
                     
             case OBJ_TAG:
-                this.gitObjectsList.add( new Tag( name, this.gitInstance, offset, this ) );
+                this.gitObjectsList.add( new AnnotedTag( name, this.gitInstance, offset, this ) );
                 break;
             
         }
