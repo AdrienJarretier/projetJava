@@ -309,37 +309,10 @@ public class Pack {
                     
                     // le delta commence par un entier a taille variable
                     // c'est un offset negatif pour trouver l'objet de base
-                    data = fis.read();
-                    int negativeOffset = data & 0b01111111;
-
-                    readNextByte = data >= 128;
-                    // si le premier bit est 1 alors on lira l'octet suivant
-                    // qui fait partie de notre entier a taille variable
-
-                    long twoPower = 1;
-
-                    while( readNextByte ) {
-
-                        data = fis.read();
-                        readNextByte = data >= 128;
-
-                        negativeOffset = negativeOffset << 7;
-                        negativeOffset += data & 0b01111111;
-
-                        twoPower *= 128;
-
-                    }
-
-                    while( twoPower > 1 ) {
-                        negativeOffset += twoPower;
-                        twoPower /= 128;
-                    }
-
-                    int resultOffset = offset.getKey() - negativeOffset;
-//                    System.out.println( "delta negative offset : " + negativeOffset + " " + offset.getValue() );
-//                    System.out.println( "result offset : " + resultOffset + " " + offsetObjects.get( resultOffset ) );
                     
-                    this.addObject( offset.getValue(), offset.getKey(), getType(resultOffset) );
+                    int absoluteBaseOffset = getAbsoluteBaseObjectOffset(offset.getKey());
+                    
+                    this.addObject( offset.getValue(), offset.getKey(), getType( absoluteBaseOffset ) );
 
                     break;
                     
@@ -354,39 +327,75 @@ public class Pack {
 //------------------------------------------------------------------------------
     }
     
-//    /**
-//     * a partir d'un objet a la position donne, suppose un objet delta
-//     * recherche et renvoi la position de l'objet de base le plus absolu
-//     * c'est a dire parcours tous les deltas jusqua trouver l'objet
-//     * Blob, Commit, Tree, ...
-//     * 
-//     * @param offset la position de l'objet delta
-//     * @return la position de l'objet de base
-//     */
-//    private int getAbsoluteBaseObjectOffset( int offset ) throws IOException {
-//        
-//            FileInputStream fis = new FileInputStream( this.pack );
-//            
-//            fis.skip( offset );
-//            
-//            int data = fis.read();
-//
-//            // test "most significant bit"
-//            boolean readNextByte = data >= 128;
-//            // si le premier bit est 1 alors on lira l'octet suivant
-//            // qui fait partie de notre entier a taille variable
-//            // (voir plus haut)
-//            
-//            while( readNextByte ) {
-//                
-//                data = fis.read();
-//                readNextByte = data >= 128;
-//                
-//            }
-//            
-//            int type = getType( offset.getKey() );
-//        
-//    }
+    /**
+     * a partir d'un objet a la position donne, suppose un objet delta
+     * recherche et renvoi la position de l'objet de base le plus absolu
+     * c'est a dire parcours tous les deltas jusqua trouver l'objet
+     * Blob, Commit, Tree, ...
+     * 
+     * @param offset la position de l'objet delta
+     * @return la position de l'objet de base
+     */
+    private int getAbsoluteBaseObjectOffset( int offset ) throws IOException {
+        
+        int type;
+        
+        do {
+            
+            FileInputStream fis = new FileInputStream( this.pack );
+
+            fis.skip( offset );
+
+            int data = fis.read();
+
+            // test "most significant bit"
+            boolean readNextByte = data >= 128;
+
+            while( readNextByte ) {
+
+                data = fis.read();
+                readNextByte = data >= 128;
+
+            }
+            
+            // le delta commence par un entier a taille variable
+            // c'est un offset negatif pour trouver l'objet de base
+            data = fis.read();
+            int negativeOffset = data & 0b01111111;
+
+            readNextByte = data >= 128;
+            // si le premier bit est 1 alors on lira l'octet suivant
+            // qui fait partie de notre entier a taille variable
+
+            long twoPower = 1;
+
+            while( readNextByte ) {
+
+                data = fis.read();
+                readNextByte = data >= 128;
+
+                negativeOffset = negativeOffset << 7;
+                negativeOffset += data & 0b01111111;
+
+                twoPower *= 128;
+
+            }
+
+            while( twoPower > 1 ) {
+                negativeOffset += twoPower;
+                twoPower /= 128;
+            }
+
+            int resultOffset = offset - negativeOffset;
+
+            type = getType( resultOffset );
+
+            offset = resultOffset;
+            
+        } while( type >= OBJ_OFS_DELTA );
+
+        return offset;
+    }
     
     /**
      * 
@@ -415,8 +424,6 @@ public class Pack {
     }
     
     private void addObject( String name, int offset, int type ) throws IOException {
-        
-        System.out.println("type : " + type);
         
         switch(type) {
             
@@ -452,6 +459,8 @@ public class Pack {
         FileInputStream fis = new FileInputStream( this.pack );
         
         fis.skip(offset);
+        
+//        System.out.println("rawDatas type : " + getType(offset));
         
         boolean readNextByte = fis.read() >= 128;
         
