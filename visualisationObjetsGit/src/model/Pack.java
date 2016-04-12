@@ -323,6 +323,8 @@ public class Pack {
             }
             
         }
+        
+        fis.close();
     
 //------------------------------------------------------------------------------
     }
@@ -372,6 +374,8 @@ public class Pack {
             negativeOffset += twoPower;
             twoPower /= 128;
         }
+        
+        fis.close();
 
         return offset - negativeOffset;
         
@@ -424,6 +428,8 @@ public class Pack {
         }
         typeStringBin = typeStringBin.substring(1,4);
         type = Integer.valueOf(typeStringBin, 2);
+        
+        fis.close();
         
         return type;
         
@@ -484,6 +490,7 @@ public class Pack {
             
         }
         else {
+            
         /*
             l'objet est un delta,
             il faut donc le recomposer avant de le retourner
@@ -571,6 +578,8 @@ public class Pack {
             }
             
 //            System.out.println("return");
+
+            fis.close();
             
             return output.toArray(new Byte[0]);
             

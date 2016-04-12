@@ -29,6 +29,8 @@ public final class FileReading {
             throw new IOException("fichier "+f.getName()+" : "+e.getMessage());
         }
          
+        fis.close();
+        
         return LectureFichier.toArray(new Byte[0]);         
                
     }
@@ -48,7 +50,9 @@ public final class FileReading {
         catch(IOException e) {
             throw new IOException( e.getMessage() );
         }
-         
+        
+        decompresser.close();
+        
         return LectureFichier.toArray(new Byte[0]);         
                
     }

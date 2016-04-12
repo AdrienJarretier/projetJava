@@ -3,6 +3,7 @@ package visualisationobjetsgit;
 import exceptions.DirectoryDoesNotExistException;
 import exceptions.NotGitDirectoryException;
 import exceptions.NotGitRepositoryException;
+import java.io.Console;
 import java.io.File;
 import java.io.IOException;
 import javafx.application.Application;
