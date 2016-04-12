@@ -327,6 +327,56 @@ public class Pack {
 //------------------------------------------------------------------------------
     }
     
+    private int baseObjectOffset( int offset ) throws FileNotFoundException, IOException {
+         
+        FileInputStream fis = new FileInputStream( this.pack );
+
+        fis.skip( offset );
+
+        int data = fis.read();
+
+        // test "most significant bit"
+        boolean readNextByte = data >= 128;
+
+        while( readNextByte ) {
+
+            data = fis.read();
+            readNextByte = data >= 128;
+
+        }
+
+        // le delta commence par un entier a taille variable
+        // c'est un offset negatif pour trouver l'objet de base
+        data = fis.read();
+        int negativeOffset = data & 0b01111111;
+
+        readNextByte = data >= 128;
+        // si le premier bit est 1 alors on lira l'octet suivant
+        // qui fait partie de notre entier a taille variable
+
+        long twoPower = 1;
+
+        while( readNextByte ) {
+
+            data = fis.read();
+            readNextByte = data >= 128;
+
+            negativeOffset = negativeOffset << 7;
+            negativeOffset += data & 0b01111111;
+
+            twoPower *= 128;
+
+        }
+
+        while( twoPower > 1 ) {
+            negativeOffset += twoPower;
+            twoPower /= 128;
+        }
+
+        return offset - negativeOffset;
+        
+    }
+    
     /**
      * a partir d'un objet a la position donne, suppose un objet delta
      * recherche et renvoi la position de l'objet de base le plus absolu
@@ -341,53 +391,9 @@ public class Pack {
         int type;
         
         do {
+
+            int resultOffset = baseObjectOffset(offset);
             
-            FileInputStream fis = new FileInputStream( this.pack );
-
-            fis.skip( offset );
-
-            int data = fis.read();
-
-            // test "most significant bit"
-            boolean readNextByte = data >= 128;
-
-            while( readNextByte ) {
-
-                data = fis.read();
-                readNextByte = data >= 128;
-
-            }
-            
-            // le delta commence par un entier a taille variable
-            // c'est un offset negatif pour trouver l'objet de base
-            data = fis.read();
-            int negativeOffset = data & 0b01111111;
-
-            readNextByte = data >= 128;
-            // si le premier bit est 1 alors on lira l'octet suivant
-            // qui fait partie de notre entier a taille variable
-
-            long twoPower = 1;
-
-            while( readNextByte ) {
-
-                data = fis.read();
-                readNextByte = data >= 128;
-
-                negativeOffset = negativeOffset << 7;
-                negativeOffset += data & 0b01111111;
-
-                twoPower *= 128;
-
-            }
-
-            while( twoPower > 1 ) {
-                negativeOffset += twoPower;
-                twoPower /= 128;
-            }
-
-            int resultOffset = offset - negativeOffset;
-
             type = getType( resultOffset );
 
             offset = resultOffset;
@@ -449,7 +455,7 @@ public class Pack {
     
     /**
      *
-     * @param offset la position de l'objet recherchz
+     * @param offset la position de l'objet recherche
      * @return les donnes presentes apres les metadatas
      * @throws java.io.FileNotFoundException
      * @throws java.io.IOException
@@ -460,8 +466,8 @@ public class Pack {
         
         fis.skip(offset);
         
-//        System.out.println("rawDatas type : " + getType(offset));
-        
+        // on passe les metainformations de l'objet
+        // ( type, taille apres decompression )
         boolean readNextByte = fis.read() >= 128;
         
         while( readNextByte ) {
@@ -470,8 +476,186 @@ public class Pack {
 
         }
         
-        return FileReading.inflate( fis );
+        if( getType(offset) >= OBJ_COMMIT && getType(offset) <= OBJ_TAG   ) {
         
+            return FileReading.inflate( fis );
+            
+        }
+        else {
+        /*
+            l'objet est un delta,
+            il faut donc le recomposer avant de le retourner
+        */
+        
+            /*
+                ici on passe le negativeOffset qui apparait
+                avant les instructions de notre delta
+            */
+            readNextByte = fis.read() >= 128;
+
+            while( readNextByte ) {
+
+                readNextByte = fis.read() >= 128;
+
+            }
+            
+            int baseObjectOffset = this.baseObjectOffset( offset );
+            
+            Byte[] inflatedDelta = FileReading.inflate( fis );
+            
+            /*
+            The delta begins with the source and target lengths,
+            both encoded as variable-length integers,
+            which is useful for error checking, but is not essential.
+            */
+
+            // on va passer ces 2 valeurs
+            // qui se terminent chacune par un octet >= 0
+
+            int i = 0;
+
+            // source length
+            while( inflatedDelta[i]<0 ) {
+                i++;
+            }
+            i++;
+
+            // target length
+            while( inflatedDelta[i]<0 ) {
+                i++;
+            }
+            i++;
+            
+            ArrayList<Byte> output = new ArrayList<>();
+            Byte[] baseObject = getRawDatas(baseObjectOffset);
+            
+            while( i < inflatedDelta.length ) {
+
+//                System.out.println( Integer.toBinaryString( inflatedDelta[i] & 0xff ) );
+
+                byte instruction = inflatedDelta[i];
+
+                if( instruction < 0 ) {
+                    // c'est une copie
+                    
+                    System.out.println("copy ");
+
+                    int[] copyDatas = copyOffsetAndLength(instruction, i, inflatedDelta);
+                    
+                    System.out.println(" offset : " + copyDatas[0]);
+                    System.out.println(" length : " + copyDatas[1]);
+                    
+                    for (int j = copyDatas[0]; j < copyDatas[0]+copyDatas[1]; j++) {
+                        
+                        output.add( baseObject[j] );
+                        
+                    }
+                    i = copyDatas[2];
+                }
+                else {
+                    // c'est une insertion
+                    
+//                    System.out.println("insert");
+                    i++;
+                    for (int j = 0; j < instruction; j++) {
+                        output.add( inflatedDelta[i] );
+//                        System.out.println( "\t" +  Integer.toBinaryString( inflatedDelta[i] & 0xff ) );
+                        i++;
+                    }
+                }
+            }
+            
+            return output.toArray(new Byte[0]);
+            
+        }
+        
+    }
+    
+    /**
+     *
+     * @param copyInstruction l'octet indiquant l'instruction de copie
+     * @param nextByteToRead passage par "reference" de la valeur actuelle du pointeur
+     * @param inflated le tableau d'octets qui debute au commencement du delta
+     * @return la position des donnees a copier
+     */
+    public static int byteOffset(byte copyInstruction, int[] nextByteToRead, Byte[] inflated) {
+        
+        int byteOffset = 0;
+        int mask = 0b0001;
+        
+        for (int j = 3; j >= 0; j--) {
+            
+            if( (copyInstruction & mask) > 0 ) {
+                
+                nextByteToRead[0]++;
+                
+                int byteToAdd = inflated[nextByteToRead[0]-1] & 0xff;
+                for (int k = 1; k < mask; k*=2) {
+                    byteToAdd = byteToAdd << 8;
+                }
+                
+                byteOffset += byteToAdd;
+                
+            }
+            
+            mask = mask << 1;
+        }
+        
+        return byteOffset;
+    }
+    
+    /**
+     *
+     * @param copyInstruction l'octet indiquant l'instruction de copie
+     * @param nextByteToRead passage par "reference" de la valeur actuelle du pointeur
+     * @param inflated le tableau d'octets qui debute au commencement du delta
+     * @return la quantite d'octets a copier
+     */
+    public static int copyLength(byte copyInstruction, int[] nextByteToRead, Byte[] inflated) {
+        
+        int copyLength = 0;
+        int mask = 0b00010000;
+        
+        for (int j = 2; j >= 0; j--) {
+            
+            if( (copyInstruction & mask) > 0 ) {
+                
+                nextByteToRead[0]++;
+                
+                int byteToAdd = inflated[nextByteToRead[0]-1] & 0xff;
+                
+                for (int k = 1; k < mask/16; k*=2) {
+                    byteToAdd = byteToAdd << 8;
+                }
+                
+                copyLength += byteToAdd;
+                
+            }
+            
+            mask = mask << 1;
+        }
+        
+        return copyLength;
+        
+    }
+    
+    /**
+     *
+     * @param copyInstruction l'octet indiquant l'instruction de copie
+     * @param i la valeur actuelle du pointeur sur inflate
+     * @param inflated le tableau d'octets qui debute au commencement du delta
+     * @return tableau { byteOffset, copyLength, nouvelle valeur de i }
+     */
+    public static int[] copyOffsetAndLength(byte copyInstruction, int i, Byte[] inflated) {
+        
+        int[] iArray = { i };
+        int byteOffset = byteOffset(copyInstruction, iArray, inflated);
+        
+        int copyLength = copyLength(copyInstruction, iArray, inflated);
+        
+        int[] result = { byteOffset, copyLength, iArray[0]+1 };
+        
+        return result;
     }
 
 }
