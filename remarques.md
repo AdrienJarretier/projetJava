@@ -17,5 +17,3 @@ Voici un ensemble de remarque sur le code du projet.
     133  Jarretier Adrien <jarretier.adrien@gmail.com>
     23  Houseaux Laurie <lma.houseaux@gmail.com>
     16  COT Bastien <bastien.cot81@hotmail.fr>  
-
-  Dois-je en déduire Oliver Vicente c'est occupé de.... rien ?
