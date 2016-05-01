@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Unpacking Git packfiles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
+  <meta name="description" content="">
+  <link rel="canonical" href="https://codewords.recurse.com/issues/three/unpacking-git-packfiles">
+  <link href="Unpacking%20Git%20packfiles_files/bootstrap-combined.css" rel="stylesheet">
+  <link href="Unpacking%20Git%20packfiles_files/font-awesome.css" rel="stylesheet">
+  <link rel="alternate" type="application/atom+xml" title="Code Words" href="https://codewords.recurse.com/feed.xml">
+  <script src="Unpacking%20Git%20packfiles_files/widgets.js" id="twitter-wjs"></script><script src="Unpacking%20Git%20packfiles_files/analytics.js" async=""></script><script src="Unpacking%20Git%20packfiles_files/jquery.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="Unpacking%20Git%20packfiles_files/application-e7c6995a22f445fc0964b7fc1db14584.css">
+  <script src="Unpacking%20Git%20packfiles_files/application-796607bcda78a2ead524bc09b70a1b56.js"></script>
+  
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+                             m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-28142758-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+
+  <body>
+    <div class="announcement-banner">
+  Hacker School is now the Recurse Center. <a href="https://www.recurse.com/blog/77-hacker-school-is-now-the-recurse-center">Read more.</a>
+</div>
+
+    <header id="site-header">
+  <div id="top-strip"></div>
+  <div id="logo">
+    <a href="https://codewords.recurse.com/"><img src="Unpacking%20Git%20packfiles_files/logo_48x60-0b931d91d91a73f6ba0f24efcd5936bd.png"></a>
+  </div>
+</header>
+
+
+    <div class="container">
+      <div class="wrap">
+        <div class="post">
+
+  <header class="post-header">
+    <p class="issue small-caps">
+      <a href="https://codewords.recurse.com/issues/three">Code Words – Issue three</a>
+    </p>
+    <h1>Unpacking Git packfiles</h1>
+    <p class="meta small">
+      <a href="https://codewords.recurse.com/about#Aditya%20Mukerjee"> Aditya Mukerjee</a>
+    </p>
+  </header>
+
+  <article class="post-content">
+    <p>While working on <a href="https://github.com/ChimeraCoder/gitgo/">Gitgo</a>,
+ an implementation of Git in pure Go, I encountered a puzzling issue. 
+Gitgo tests its own dogfood, which means the tests for parsing objects 
+use the git repository for Gitgo itself. This worked fine for a few 
+days, until my pairing partner wanted to work on his computer instead of
+ mine. I pushed the code to a remote repository so he could check it 
+out, and we immediately noticed that all of the tests suddenly started 
+failing on <em>both</em> of our computers, complaining that the commit objects did not exist. Sure enough, the commits were missing from <code>.git/objects/</code>. And yet, we were both still able to check out the supposedly missing commits on our machines using Git. What was going wrong?</p>
+
+<p>The commit objects were there, but they were stored in a different location, as <em>packfiles</em>.</p>
+
+<h2 id="packfile-motivation">Packfile motivation</h2>
+
+<p>Git was built to be fast. One of the reasons that <code>git checkout</code>
+ is fast is that it doesn’t actually store any diffs. Instead, Git 
+stores the actual, raw, content of every file at each commit, which it 
+uses to calculate diffs on-the-fly. All this data starts to quickly add 
+up in size, so Git does three things to reduce the space on disk.</p>
+
+<p>First, it compresses files before storing them, using zlib. Zlib 
+reduces the footprint of each file while still being quick to decompress
+ (“inflate”). If you didn’t have version control software, but wanted to
+ be able to reference previous versions of your work, you might simply 
+create a ZIP archive of your directory every day as a makeshift “version
+ control.” Although Git uses a different compression algorithm, this is 
+almost exactly what it does!</p>
+
+<p>The second way that Git saves disk space is by doing deduplication, a
+ technique to remove redundant data. When creating a new commit, Git 
+SHA-1 hashes the contents of each tracked file within the commit to 
+compare to the hashes of all the objects it already has. If a file’s 
+hash matches an existing object’s hash, Git doesn’t store any new 
+content for that file.</p>
+
+<p>This is why <code>git mv</code> acts like a regular <code>mv</code> followed by a <code>git add</code> of the new file and a <code>git rm</code>
+ of the old one. Git doesn’t actually need to know that you’ve moved a 
+file; it just needs to know that there’s now a file with a different 
+name whose content happens to be the same as a previously tracked file.</p>
+
+<p>There’s a problem with all of this, though. Hashing functions are 
+designed to avalanche: changing just a single bit in an input to a 
+hashing function should yield a completely different output.</p>
+
+<div class="highlight"><pre><code>$ echo "The quick brown fox jumped over the lazy dogs" | sha1sum 
+ce1ac435d9d47079f74874ed49615225d1be7be4  -
+$ echo "The quick brown fox jumped over the lazy dogs." | sha1sum 
+87344ca7264d0f3e1d4e1350aeb71ffb597af8e2  -
+$ echo "The quick brown fox jumped over the lazy dogz" | sha1sum 
+a262234693b48b9c93ac3d69ce5818ade116a4be  -
+</code></pre></div>
+<p>Even if two files mostly match, if there’s any difference at all Git 
+thinks they’re completely different. This isn’t a problem if you never 
+plan on modifying the code you write – but at that point, why bother 
+using version control in the first place?</p>
+
+<p>It turns out that this isn’t that problematic for many projects. Zlib
+ compression is quite powerful, and disk space is cheap enough that Git 
+is happy to use nothing more than these two techniques for quite a 
+while. But there’s one thing that isn’t quite so cheap: bandwidth. Even 
+if your ISP doesn’t charge you per-megabyte, you still care about how 
+long it takes you to clone, push, and pull. Git is meant to be fast, and
+ taking lots of data that is similar-but-not-quite-identical, 
+compressing it, and then transmitting it over the wire is slow.</p>
+
+<h2 id="enter-packfiles">Enter packfiles</h2>
+
+<p>I’ll count packfiles as the third strategy that Git uses to reduce 
+disk space usage, even though packfiles were really created to reduce 
+network usage (and increase network performance). It’s helpful to keep 
+this in mind because the design of Git’s packfiles were informed by the 
+goal of making network usage easy. Reducing the disk space needed is a 
+pleasant side effect.</p>
+
+<p>You can check for any packfiles in a Git repository by looking under <code>.git/objects/pack/</code>.
+ If you’re looking at a repository you created yourself, this directory 
+may be empty because packfiles are usually created the first time you 
+push, pull, fetch, or clone. For a small or medium-sized repository, 
+you’ll likely only see a single packfile, along with a corresponding 
+index file:</p>
+
+<div class="highlight"><pre><code>$ ls .git/objects/pack/
+pack-b3de836568441629d260ae19c7c1c11fa8ce5a5e.idx  pack-b3de836568441629d260ae19c7c1c11fa8ce5a5e.pack
+</code></pre></div>
+<p>Notice that the names of these files match except for the extension. 
+The .pack file contains the actual Git objects and the .idx file 
+contains the index used to quickly locate objects within the .pack file.</p>
+
+<p>We can see which objects are contained in a pack with the Git command-line tools:</p>
+
+<div class="highlight"><pre><code>$ git verify-pack -v .git/objects/pack/pack-b3de836568441629d260ae19c7c1c11fa8ce5a5e.pack
+200c8213bd227eed106fed7b168ac3dfd5257cc3 commit 263 184 12
+b8043e69c7af9925e3a52500ab26cc743ff5ef5f commit 458 293 196
+b268ea58184656aff6e933f19f32239092602a5d commit 232 163 489
+30e7261b0c4871f4f924bd92de0511e3e2f06aa1 commit 278 194 652
+89adc4b548996941a8ad925943852277aaec41c8 commit 251 174 846
+0bee0ab5eaa26a18486dcf11126a8e3c6ee0c8bd commit 269 184 1020
+afa6aaae2bb2481163ca9f6116aec86719695957 commit 298 207 1204
+07ebd246a136dc074e0bfdbbd3e24f7345b54f39 commit 233 163 1411
+f3f7619936a2264ac88ee1649107d5d0df0f8a31 commit 247 171 1574
+9a8a2efaac4210f522790863053f30e25b822876 commit 249 174 1745
+3d71259d2ee3ec7f1f80b7ed79429d3bda92ee6a commit 222 157 1919
+33a8962e32df97e3d4d9c188f0daf967d4977da7 commit 73 85 2076 1 3d71259d2ee3ec7f1f80b7ed79429d3bda92ee6a
+a6c45c1724ae18bbfe0ed5bf5b7eeb3637bbc6ab commit 342 235 2161
+3a024e2f731f30545af80bf9bb66501f9530e960 commit 65 75 2396 1 a6c45c1724ae18bbfe0ed5bf5b7eeb3637bbc6ab
+360617730b92b72b1f599391a46be736ca3a7d80 commit 266 184 2471
+3a9d2d6974acd98dab6f9e834f477b353c41295d commit 336 228 2655
+106aa1c02fa7f8e883837f270a606819fd8651bc commit 248 170 2883
+4b9aad61562afaa257bb4b0c3d26816545fd46c1 commit 266 179 3053
+200e279624a42905bed21c89139db6dd22f93610 commit 423 284 3232
+df084d8bce5c57acdebf0958bfdfa30b1e3f929c commit 60 73 3516 1 200e279624a42905bed21c89139db6dd22f93610
+5aecdc1eb6a499010defdd06889f3ffc559b7206 commit 60 73 3589 1 200e279624a42905bed21c89139db6dd22f93610
+165e1598a27169730804267c6d9705adee06aa00 commit 61 74 3662 1 200e279624a42905bed21c89139db6dd22f93610
+da3819b25efdfcec084abd524ab1e8611b427252 commit 59 72 3736 1 200e279624a42905bed21c89139db6dd22f93610
+be5d471b02b9ee56538c8dc04253ec7206a43971 commit 241 170 3808
+9e08d4ffcc8beb10dc6eaaa93cdbdb00cfc95be9 commit 58 70 3978 1 be5d471b02b9ee56538c8dc04253ec7206a43971
+eeac5890e8e6b7500c12ebd51af4f6c6be6f9ccc commit 12 23 4048 2 9e08d4ffcc8beb10dc6eaaa93cdbdb00cfc95be9
+</code></pre></div><p>(some entries ommitted for brevity)</p>
+
+<p>Objects in a packfile can either be <em>deltified</em> or <em>non-deltified</em>.
+ Deltification means that Git stores only a special diff instead of 
+storing the whole object. Normal diffs reference a base object and 
+describe a series of actions (e.g., insert, delete, or typechange) that 
+should be applied to the base object in order to create the new result. 
+Deltas work similarly, except that they’re not meant to be 
+human-readable (and the actions that they describe are different).</p>
+
+<p>Deltified objects are easy to spot in the <code>git verify-pack</code> output – they’re the ones with the extra SHA at the end. Instead of storing the entire object, they store a <em>delta</em> object.  The SHA at the end tells us the base object. In this case, <code>df084d8bce5c57acdebf0958bfdfa30b1e3f929c</code>  and <code>5aecdc1eb6a499010defdd06889f3ffc559b7206</code> both are stored as deltas with <code>200e279624a42905bed21c89139db6dd22f93610</code> as a base object.</p>
+
+<p>The base object may also be deltified, which allows multiple layers 
+of deltification, reducing the total size even further. For deltified 
+objects, the second-to-last field (right before the base object name) 
+indicates the depth of the object. So <code>eeac5890e8e6b7500c12ebd51af4f6c6be6f9ccc</code> has two layers of deltification, because its base object is <code>9e08d4ffcc8beb10dc6eaaa93cdbdb00cfc95be9</code>, which is also a delta, and this second delta’s base object is <code>be5d471b02b9ee56538c8dc04253ec7206a43971</code>. Don’t get thrown off by the hexadecimal names – at its root (no pun intended), this is just a recursive data structure.</p>
+
+<h2 id="parsing-packfiles">Parsing packfiles</h2>
+
+<p>Packfiles are mostly self-contained. In fact, it’s possible to parse a
+ packfile without an index file — the index file is merely for 
+convenience and performance.</p>
+
+<p>The packfile starts with 12 bytes of meta-information and ends with a
+ 20-byte checksum, all of which we can use to verify our results. The 
+first four bytes spell “PACK” and the next four bytes contain the 
+version number – in our case, [0, 0, 0, 2]. The next four bytes tell us 
+the number of objects contained in the pack. Therefore, a single 
+packfile cannot contain more than 2<sup>32</sup> objects, although a 
+single repository may contain multiple packfiles. The final 20 bytes of 
+the file are a SHA-1 checksum of all the previous data in the file.</p>
+
+<p>The heart of the packfile is a series of data chunks, with some 
+metainformation preceding each one. This is where things get 
+interesting! The metainformation is formatted slightly differently 
+depending on whether the data chunk that comes after it is deltified or 
+not. In both cases, they begin by telling us the size of the object that
+ the packfile contains. This size is encoded as a variable-length 
+integer with a special format.</p>
+
+<p>Because the integer has a variable length, the first bit of each byte
+ – also called the MSB, for “most significant bit” - is reserved. That 
+bit tells us whether the next byte belongs as part of the 
+variable-length integer that we’re decoding. If it’s a 1, we should read
+ the next byte. An easy way to check for this is to check if the byte is
+ less than 128, which is <code>10000000</code> in binary.</p>
+
+<p>The very first byte of this integer contains one extra piece of 
+information: the type of the object that follows. There are six defined 
+types, which means that this information fits into three bits, and the 
+three bits after the MSB are used to designate this information:</p>
+
+<p><img src="Unpacking%20Git%20packfiles_files/varint.svg" alt="Packfile object header"></p>
+
+<p>For the non-deltified types, the data that follows the 
+metainformation is the zlib-compressed object data, which we can handle 
+just like we handle normal Git objects. The variable-length integer 
+tells us the expected size of the object after the object is inflated 
+(decompressed).</p>
+
+<p>How can we decompress the object if we don’t know how much data to read? It turns out that zlib is pretty robust and <a href="https://play.golang.org/p/z4xue6V0tv">will ignore any extra bytes added to the end of a valid zlib-compressed data stream</a>.
+ Zlib is able to do this because the compressed data itself begins with 
+its own header, but since we’re not implementing zlib’s inflate function
+ from scratch, we can treat this binary data as a black box.</p>
+
+<p>However, there’s a problem here. We can decompress the first object 
+as long as we give zlib more data than it needs. But how do we know 
+where the second object begins?</p>
+
+<p>It turns out that, with the approach we’ve been using so far, we 
+can’t! Go’s zlib library buffers the input that we feed it greedily. As a
+ result, we can’t simply measure the number of bytes that the zlib 
+library inputs – it may request to read more bytes than it ends up 
+using. (This isn’t a problem exclusive to Go, either; <a href="https://stackoverflow.com/questions/28640738/how-can-i-deflate-zlib-data-and-find-out-how-many-input-bytes-there-were">other languages have similar issues</a>.)</p>
+
+<p>This is where the IDX file comes in – it tells us where each object begins.</p>
+
+<h2 id="idx-files">IDX files</h2>
+
+<p>While it’s possible to to work around the aforementioned buffering 
+issues and parse a packfile without ever reading the IDX file, the index
+ makes it a lot easier. Like the packfile, a version 2 index file starts
+ with a header, though the index file header is only eight bytes instead
+ of 12. The first four bytes are always <code>255, 116, 79, 99</code>, 
+which are chosen because the first version of the index file did not 
+have any header information, and these four bytes would be an invalid 
+start to a version 1 index file. The next four bytes denote the version 
+number explicitly – in our case, version 2.</p>
+
+<p><img src="Unpacking%20Git%20packfiles_files/idx-layer0.svg" alt="IDX Layer 0"></p>
+
+<p>After the header, we encounter what Git calls a fanout table.</p>
+
+<p>The first level of entries in this table is a series of 256 entries 
+of four bytes each, 1024 bytes long in total. According to the <a href="https://www.kernel.org/pub/software/scm/git/docs/v1.4.3/technical/pack-format.txt">documentation</a>,
+ “[the] N-th entry of this table records the number of objects in the 
+corresponding pack, the first byte of whose object name is less than or 
+equal to N.”</p>
+
+<p><img src="Unpacking%20Git%20packfiles_files/idx-layer1.svg" alt="IDX Layer 1"></p>
+
+<p>Let’s break that down by example. Remember that object names are just
+ SHAs, which we usually read in base-16. If the first entry of our 
+fanout table is <code>4</code>, then we will eventually expect to find four objects whose 20-byte object name begins with <code>00</code>. If the second entry of the fanout table is also <code>4</code>, that means that we will expect to find zero objects whose 20-byte object name beings with <code>01</code>, because these totals are cumulative and we’ll already have four objects whose name begins with <code>00</code>. If the 17th entry is the first whose value is greater than <code>4</code>, and it has a value of <code>12</code>, then that means we will find exactly eight objects whose name begins with <code>10</code> (remember that object names use base 16).</p>
+
+<p>This table has 256 entries, so the last entry tells us how many objects will have an object name that begins with <code>ff</code> or any one-byte hexadecimal value that is less than <code>0xFF</code>. Since <code>0xFF</code> (256) is the largest value that can fit into a single byte, the last entry tells us how many objects to expect in total.</p>
+
+<p>The second layer of the fanout table contains the 20-byte object 
+names, in order. We already know how many to expect from the first layer
+ of the fanout table.</p>
+
+<p>The third layer of the fanout table gives us a four-byte <a href="https://en.wikipedia.org/wiki/Cyclic_redundancy_check">cyclic redundancy check</a>
+  value for each object. Remember that packfiles are optimized for use 
+across a network, so it’s important to be able to check that data did 
+not get corrupted during transfer.</p>
+
+<p>The fourth layer contains the information we’ve been looking for: the
+ packfile offsets for each object. These are also four bytes per entry. 
+If the packfile is less than 2 GB, the MSB of all of these values will 
+be <code>0</code>, and the remaining bits contain the packfile offset. 
+Otherwise, the offset may be too large to fit into 4 bytes. In this 
+case, the offset will actually be stored in the fifth layer, the MSB in 
+the fourth layer for that object will be <code>1</code>, and the remaining bits will be the offset in the fifth layer at which the offset into the packfile can be found.</p>
+
+<p>The fifth and final layer is only present for packfiles larger than 
+2GB. If present, it will contain a series of 8-byte entries that encode 
+the offset in the packfile. As mentioned before, the fourth layer will 
+indicate which entries in the fifth layer correspond to each object - if
+ an element in the fourth layer has its MSB set, the remaining bits in 
+that element specify which element in the fifth layer contain the 
+packfile offset for that object.</p>
+
+<p>This is the end of the fanout table. The index file itself ends with a
+  20-byte checksum of the packfile and a 20-byte checksum of the entire 
+index file.</p>
+
+<h3 id="searching-packfiles">Searching packfiles</h3>
+<p>At this point, you may be wondering why Git uses such a convoluted 
+format. While this format may be difficult to read, it makes it possible
+ to use binary search to locate a particlar object in an IDX file. If 
+there are multiple packfiles, the only way to find a particular object 
+is to search each one, so binary search is crucial for speed. 
+Furthermore, remember that packfiles (and IDX files) were motivated by 
+network performance. For dense packfiles, there’s very little redundant 
+information in either the packfile or the index file. Information is 
+packed not only into every byte, but into every bit.</p>
+
+<h2 id="packfiles-revisited">Packfiles, revisited</h2>
+
+<p>Now that we know where every object in the packfile starts, we can 
+decode the rest of the packfile. For non-deltified objects, the actual 
+data is just the zlib-compressed object data.</p>
+
+<p>There are two kinds of deltified objects. If the type is <code>OBJ_REF_DELTA</code>
+ (reference delta object), the object metainformation (which we already 
+parsed earlier) is followed by the 20-byte name of the base object. 
+Remember that deltas are analogous to diffs, so we need to know what the
+ reference point is for the diff that we are about to apply. After this 
+name, you’ll find the zlib-compressed delta data, which we’ll handle 
+shortly.</p>
+
+<p>However, even this was wasteful, so Git added the <code>OBJ_OFS_DELTA</code>
+ (offset delta object). For these, instead of the 20-byte base object 
+name, there’s another variable-length integer. Again, the MSB tells us 
+where the last byte of the integer is. This integer represents a 
+negative offset – it tells us how many bytes to scan backwards in the 
+current packfile in order to find the base object. The negative offset 
+is followed by the zlib-compressed delta data, just as for the <code>OBJ_REF_DELTA</code>.</p>
+
+<h2 id="applying-deltas">Applying deltas</h2>
+
+<p>We’re almost done! We’ve read the entire index file and packfile and 
+we have a bunch of base objects and delta objects. The only thing we 
+still need to do is apply the deltas to the base objects to reconstruct 
+the missing objects.</p>
+
+<p>The delta begins with the source and target lengths, both encoded as 
+variable-length integers, which is useful for error checking, but is not
+ essential. After this, there are a series of instructions, which may be
+ either “copy” (MSB = 1) or “insert” (MSB = 0).</p>
+
+<p>Copy instructions signal that we should copy a consecutive chunk of 
+bytes from the base object to the output. There are two numbers that are
+ necessary to perform this operation: the location (offset) of the first
+ byte to copy, and the number of bytes to copy. These are stored as <em>little-endian</em> variable-length integers after each copy instruction; however, their contents are compressed.</p>
+
+<p>Even though the byte offset is a 32-bit integer, Git only includes 
+the non-zero bytes to save space, and the last four bits of the copy 
+instruction signal how many bytes to read. This means that Git could 
+store the number 536,870,912 in only a single byte!</p>
+
+<p>For example, let’s say that the last four bytes of the copy instruction are <code>1010</code> and the next two bytes are <code>11010111 01001011</code>. This means that the byte offset is <code>01001011 00000000 11010111 00000000</code>, which is 1,258,346,240.</p>
+
+<p>The copy length is interpreted the same way, with the middle three 
+bits of the instruction signifying whether to advance the cursor or not,
+ just as the last four bits signify whether to advance the cursor when 
+constructing the byte offset.</p>
+
+<p>Insert instructions are even easier. The insert instruction itself is
+ the number of bytes to copy from the delta object to the output. Since 
+insert instructions all have their MSB set to 0, the maximum number of 
+bytes to insert is 127. So, if the instruction is <code>01001011</code>, that means that we should read the next 75 bytes of the delta object and copy them to the output.</p>
+
+<h2 id="un-packing-it-all-together">(Un)-Packing it all together</h2>
+
+<p>And there we have it – we’ve parsed a packfile!</p>
+
+<p>Packfiles are one of the few parts of Git that cannot be read or 
+written at the command-line except when using Git’s plumbing tools. Most
+ people who use Git don’t even know they exist, let alone what they are 
+for or how to read them. Once you become comfortable with packfiles, 
+you’re ready for pretty much everything Git can throw your way!</p>
+
+  </article>
+
+  
+    <div class="bio">
+      <div class="bio__author">
+        <a href="http://varnull.adityamukerjee.net/">Aditya Mukerjee</a> is a statistician and systems engineer. He attended the Spring 1, 2015 batch of the Recurse Center.
+      </div>
+      <div>
+        <span class="bio__category">Editors:</span>
+        <ul class="bio__editors">
+          
+          <li><a href="http://danluu.com/">Dan Luu</a></li>
+          
+          <li><a href="http://travis.mcdem.us/">Travis McDemus</a></li>
+          
+        </ul>
+      </div>
+    </div>
+  
+
+  <div class="tweet-link">
+    <a href="https://twitter.com/intent/tweet?text=Unpacking%20Git%20packfiles&amp;url=https://codewords.recurse.com/issues/three/unpacking-git-packfiles&amp;via=recursecenter">
+      <i class="fa fa-twitter"> </i> tweet this post
+    </a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');
+    </script>
+
+  
+  </div>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer id="site-footer">
+  <div class="container">
+      <p class="site-description">A quarterly publication from the <a href="https://www.recurse.com/">Recurse Center</a></p>
+      <ul>
+        <li id="list-signup-container"><div class="list-signup" data-reactid=".0"><a href="" data-reactid=".0.0"><i class="fa fa-envelope" data-reactid=".0.0.0"></i><span data-reactid=".0.0.1"> </span><span data-reactid=".0.0.2">Subscribe</span></a></div>
+        </li>
+        <li>
+        <a href="https://twitter.com/recursecenter">
+          <span class="icon twitter">Twitter</span>
+        </a>
+        </li>
+        <li>
+          <a href="https://codewords.recurse.com/issues">Past Issues</a>
+        </li>
+        <li>
+          
+            
+          
+            <a class="page-link" href="https://codewords.recurse.com/about/">About</a>
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        </li>
+    </ul>
+  </div>
+</footer>
+
+  
+
+<iframe style="position: absolute; visibility: hidden; display: none; width: 0px; height: 0px; padding: 0px; border: medium none;" allowfullscreen="true" allowtransparency="true" scrolling="no" id="rufous-sandbox" frameborder="0"></iframe></body></html>
