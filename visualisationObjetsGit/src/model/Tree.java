@@ -95,7 +95,7 @@ public class Tree extends GitObject {
 
 			} else {
 
-				content = Tree.stringValue(FileReading.removeHeading(FileReading.ReadFile(getFile())));
+				content = Tree.stringValue(FileReading.removeHeading(FileReading.readFile(getFile())));
 
 			}
 
